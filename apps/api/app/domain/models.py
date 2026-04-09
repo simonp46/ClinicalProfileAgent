@@ -338,6 +338,21 @@ class PromptTemplate(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class PasswordResetCode(Base, TimestampMixin):
+    __tablename__ = "password_reset_codes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid_str)
+    therapist_id: Mapped[str] = mapped_column(
+        ForeignKey("therapists.id", ondelete="CASCADE"), index=True
+    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    therapist: Mapped[Therapist] = relationship("Therapist")
+
+
 class AuthRefreshToken(Base, TimestampMixin):
     __tablename__ = "auth_refresh_tokens"
 

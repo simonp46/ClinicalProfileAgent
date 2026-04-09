@@ -1,4 +1,4 @@
-"""Application configuration."""
+﻿"""Application configuration."""
 
 from __future__ import annotations
 
@@ -57,6 +57,18 @@ class Settings(BaseSettings):
     microsoft_oauth_client_secret: str | None = None
     microsoft_oauth_tenant_id: str = "common"
     microsoft_oauth_redirect_uri: str | None = None
+
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_from_name: str = "therapy-meet-copilot"
+    smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
+    use_mock_email: bool = True
+    password_reset_code_expire_minutes: int = 15
+
     artifacts_dir: str = "/tmp/therapy-meet-copilot"
     use_mock_openai: bool = True
     use_mock_google: bool = True
@@ -80,4 +92,3 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-
