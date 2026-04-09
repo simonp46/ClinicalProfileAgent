@@ -1,0 +1,127 @@
+﻿{
+  "google_transcript_name": "spaces/AAAA-BBBB/transcripts/fixture-001",
+  "google_docs_uri": "https://docs.google.com/document/d/mock-transcript",
+  "language_code": "es-CO",
+  "segments": [
+    {
+      "speaker_label": "Terapeuta",
+      "original_participant_ref": "users/therapist",
+      "text": "Buenos dias, iniciemos la valoracion de terapia respiratoria. Por favor cuenteme el motivo principal de consulta.",
+      "start_time": "2026-03-25T14:00:05+00:00",
+      "end_time": "2026-03-25T14:00:20+00:00",
+      "sequence_no": 1
+    },
+    {
+      "speaker_label": "Paciente",
+      "original_participant_ref": "users/patient",
+      "text": "Consulto por falta de aire al subir escaleras, tos casi diaria y cansancio con actividades basicas.",
+      "start_time": "2026-03-25T14:00:22+00:00",
+      "end_time": "2026-03-25T14:00:40+00:00",
+      "sequence_no": 2
+    },
+    {
+      "speaker_label": "Terapeuta",
+      "original_participant_ref": "users/therapist",
+      "text": "Desde cuando iniciaron los sintomas y como ha sido la evolucion en las ultimas semanas?",
+      "start_time": "2026-03-25T14:00:41+00:00",
+      "end_time": "2026-03-25T14:00:55+00:00",
+      "sequence_no": 3
+    },
+    {
+      "speaker_label": "Paciente",
+      "original_participant_ref": "users/patient",
+      "text": "Desde hace tres meses empeoro de forma gradual. Ahora la disnea aparece con esfuerzo moderado y en la noche ronco mas.",
+      "start_time": "2026-03-25T14:00:56+00:00",
+      "end_time": "2026-03-25T14:01:18+00:00",
+      "sequence_no": 4
+    },
+    {
+      "speaker_label": "Terapeuta",
+      "original_participant_ref": "users/therapist",
+      "text": "Voy a repasar sintomas respiratorios. Presenta tos, flema, sibilancias, dolor toracico o congestion nasal?",
+      "start_time": "2026-03-25T14:01:19+00:00",
+      "end_time": "2026-03-25T14:01:38+00:00",
+      "sequence_no": 5
+    },
+    {
+      "speaker_label": "Paciente",
+      "original_participant_ref": "users/patient",
+      "text": "Si hay tos y flema en la manana. Disnea con escaleras. No dolor toracico. Congestion nasal nocturna y episodios de sibilancias leves.",
+      "start_time": "2026-03-25T14:01:39+00:00",
+      "end_time": "2026-03-25T14:02:04+00:00",
+      "sequence_no": 6
+    },
+    {
+      "speaker_label": "Terapeuta",
+      "original_participant_ref": "users/therapist",
+      "text": "Que factores desencadenan los sintomas y que tratamientos previos ha utilizado?",
+      "start_time": "2026-03-25T14:02:05+00:00",
+      "end_time": "2026-03-25T14:02:20+00:00",
+      "sequence_no": 7
+    },
+    {
+      "speaker_label": "Paciente",
+      "original_participant_ref": "users/patient",
+      "text": "Me empeora con humo, polvo y clima frio. Use inhalador con salbutamol y lavados nasales, con mejoria parcial.",
+      "start_time": "2026-03-25T14:02:21+00:00",
+      "end_time": "2026-03-25T14:02:42+00:00",
+      "sequence_no": 8
+    },
+    {
+      "speaker_label": "Terapeuta",
+      "original_participant_ref": "users/therapist",
+      "text": "Revisemos antecedentes personales: asma, bronquitis, cirugias y medicamentos actuales.",
+      "start_time": "2026-03-25T14:02:43+00:00",
+      "end_time": "2026-03-25T14:02:57+00:00",
+      "sequence_no": 9
+    },
+    {
+      "speaker_label": "Paciente",
+      "original_participant_ref": "users/patient",
+      "text": "Tuve asma en la infancia, COVID en 2022 y septoplastia hace dos anos. Tomo loratadina y uso inhalador segun necesidad. Niego hipertension.",
+      "start_time": "2026-03-25T14:02:58+00:00",
+      "end_time": "2026-03-25T14:03:23+00:00",
+      "sequence_no": 10
+    },
+    {
+      "speaker_label": "Terapeuta",
+      "original_participant_ref": "users/therapist",
+      "text": "Hay antecedentes familiares de asma, alergias o enfermedades pulmonares?",
+      "start_time": "2026-03-25T14:03:24+00:00",
+      "end_time": "2026-03-25T14:03:35+00:00",
+      "sequence_no": 11
+    },
+    {
+      "speaker_label": "Paciente",
+      "original_participant_ref": "users/patient",
+      "text": "Si, mi madre tiene asma y mi padre alergias respiratorias. No recuerdo otra enfermedad pulmonar familiar.",
+      "start_time": "2026-03-25T14:03:36+00:00",
+      "end_time": "2026-03-25T14:03:54+00:00",
+      "sequence_no": 12
+    },
+    {
+      "speaker_label": "Terapeuta",
+      "original_participant_ref": "users/therapist",
+      "text": "En consulta se registro saturacion O2 de 91 en caminata, frecuencia cardiaca 104 y fatiga al esfuerzo. No uso de musculos accesorios en reposo.",
+      "start_time": "2026-03-25T14:03:55+00:00",
+      "end_time": "2026-03-25T14:04:20+00:00",
+      "sequence_no": 13
+    },
+    {
+      "speaker_label": "Terapeuta",
+      "original_participant_ref": "users/therapist",
+      "text": "Impresion inicial: patron respiratorio disfuncional con tolerancia al ejercicio disminuida. Plan: respiracion diafragmatica, higiene bronquial, sesiones semanales y seguimiento en 7 dias.",
+      "start_time": "2026-03-25T14:04:21+00:00",
+      "end_time": "2026-03-25T14:04:49+00:00",
+      "sequence_no": 14
+    },
+    {
+      "speaker_label": "Paciente",
+      "original_participant_ref": "users/patient",
+      "text": "De acuerdo. Me comprometo a practicar en casa y regresar a control la proxima semana.",
+      "start_time": "2026-03-25T14:04:50+00:00",
+      "end_time": "2026-03-25T14:05:04+00:00",
+      "sequence_no": 15
+    }
+  ]
+}

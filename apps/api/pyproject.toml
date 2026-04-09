@@ -1,0 +1,31 @@
+[project]
+name = "therapy-meet-copilot-api"
+version = "0.1.0"
+description = "Clinical documentation copilot API"
+requires-python = ">=3.12"
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N"]
+ignore = ["E203", "B008"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = []
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+exclude = ["alembic"]
+
+[[tool.mypy.overrides]]
+module = ["celery.*", "google.*", "openai.*", "docx.*", "jose.*", "passlib.*"]
+ignore_missing_imports = true

@@ -1,0 +1,1 @@
+docker compose run --rm api bash -lc "cd /app/apps/api && python -m app.scripts.seed_demo"

@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ClinicalStructuredOutput",
+  "type": "object",
+  "required": [
+    "metadata",
+    "identificacion_minima",
+    "motivo_consulta",
+    "resumen_sesion",
+    "sintomas_o_malestares_referidos",
+    "antecedentes_mencionados",
+    "contexto_familiar_social_laboral",
+    "factores_estresores_actuales",
+    "factores_protectores",
+    "riesgos_mencionados",
+    "frases_textuales_clave",
+    "hipotesis_iniciales_para_revision",
+    "plan_o_proximos_pasos",
+    "campos_inciertos_o_ambiguos"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["requires_human_review", "confidence_overall"],
+      "properties": {
+        "requires_human_review": { "type": "boolean" },
+        "confidence_overall": { "type": "string", "enum": ["low", "medium", "high"] }
+      }
+    },
+    "identificacion_minima": { "type": "object" },
+    "motivo_consulta": { "type": "string" },
+    "resumen_sesion": { "type": "string" },
+    "sintomas_o_malestares_referidos": { "type": "array", "items": { "type": "string" } },
+    "antecedentes_mencionados": { "type": "array", "items": { "type": "string" } },
+    "contexto_familiar_social_laboral": { "type": "array", "items": { "type": "string" } },
+    "factores_estresores_actuales": { "type": "array", "items": { "type": "string" } },
+    "factores_protectores": { "type": "array", "items": { "type": "string" } },
+    "riesgos_mencionados": { "type": "array", "items": { "type": "string" } },
+    "frases_textuales_clave": { "type": "array", "items": { "type": "string" } },
+    "hipotesis_iniciales_para_revision": { "type": "array", "items": { "type": "string" } },
+    "plan_o_proximos_pasos": { "type": "array", "items": { "type": "string" } },
+    "campos_inciertos_o_ambiguos": { "type": "array", "items": { "type": "string" } }
+  }
+}
