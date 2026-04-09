@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { SessionCard } from "@/components/session-card";
-import { listSessions, listUpcomingMeetings, logout, syncGoogleSessions } from "@/lib/api";
-import { endSession, getAccessToken } from "@/lib/auth";
+import { listSessions, listUpcomingMeetings, syncGoogleSessions } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
 import type { SessionListItem, UpcomingMeeting } from "@/lib/types";
 
 export default function SessionsPage() {
@@ -45,7 +45,7 @@ export default function SessionsPage() {
         const changes = syncResult.created_sessions + syncResult.updated_sessions + syncResult.processed_transcripts;
         if (changes > 0) {
           setSyncNotice(
-            `Google sincronizado: ${syncResult.created_sessions} sesiones creadas, ${syncResult.updated_sessions} actualizadas y ${syncResult.processed_transcripts} transcripciones procesadas.`
+            `Google sincronizado: ${syncResult.created_sessions} sesiones creadas, ${syncResult.updated_sessions} actualizadas y ${syncResult.processed_transcripts} transcripciones procesadas.`,
           );
         }
       }
@@ -64,7 +64,7 @@ export default function SessionsPage() {
         setMeetingsError(
           meetingsResult.reason instanceof Error
             ? meetingsResult.reason.message
-            : "No se pudieron cargar las proximas reuniones"
+            : "No se pudieron cargar las proximas reuniones",
         );
       }
     } finally {
@@ -73,64 +73,50 @@ export default function SessionsPage() {
     }
   }
 
-  async function onLogout() {
-    try {
-      await logout();
-    } catch {
-      // The client session still needs to be cleared if the refresh cookie is already invalid.
-    } finally {
-      endSession("logout");
-    }
-  }
-
   return (
     <main className="space-y-4">
-      <header className="rounded-2xl border border-brand-200 bg-white/90 p-5 shadow-panel">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <header className="rounded-2xl border border-brand-200 bg-white/90 p-4 shadow-panel sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-ink">Sesiones Clinicas</h1>
-            <p className="text-sm text-slate-600">Tranqui, tómate un respiro. Revisa y valida cada borrador IA.</p>
+            <h1 className="text-xl font-semibold text-ink sm:text-2xl">Sesiones clinicas</h1>
+            <p className="max-w-2xl text-sm leading-6 text-slate-600">
+              Tranqui, tomate un respiro. Revisa proximas reuniones, transcripciones y borradores con una vista mas comoda en movil, tablet y escritorio.
+            </p>
           </div>
-          <button className="rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm text-ink" onClick={() => void onLogout()}>
-            Cerrar sesion
+          <button
+            className="w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm font-medium text-ink transition hover:bg-brand-50 sm:w-auto"
+            disabled={syncing}
+            onClick={() => void refreshDashboard()}
+          >
+            {syncing ? "Sincronizando..." : "Sincronizar Google"}
           </button>
         </div>
       </header>
 
-      {loading ? <p>Cargando...</p> : null}
-      {error ? <p className="text-sm text-alert">{error}</p> : null}
+      {loading ? <p className="px-1 text-sm text-slate-600">Cargando...</p> : null}
+      {error ? <p className="rounded-xl bg-rose-50 p-3 text-sm text-alert">{error}</p> : null}
       {syncNotice ? <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{syncNotice}</p> : null}
 
-      <section className="rounded-2xl border border-brand-200 bg-white/95 p-5 shadow-panel">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <section className="rounded-2xl border border-brand-200 bg-white/95 p-4 shadow-panel sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-ink">Proximas reuniones o consultas</h2>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm leading-6 text-slate-600">
               Visualiza la agenda mas cercana con el titulo del evento y su descripcion cuando este disponible.
             </p>
-            <p className="mt-2 text-xs text-slate-500">
-              Si terminaste una videollamada real y aun no ves la nueva sesion, usa sincronizar Google para importar la
-              reunion, buscar su conference record y procesar la transcripcion disponible.
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Si terminaste una videollamada real y aun no ves la nueva sesion, usa sincronizar Google para importar la reunion, buscar su conference record y procesar la transcripcion disponible.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
-              {upcomingMeetings.length} programadas
-            </span>
-            <button
-              className="rounded-full border border-brand-200 bg-white px-3 py-1.5 text-xs font-medium text-ink hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={syncing}
-              onClick={() => void refreshDashboard()}
-            >
-              {syncing ? "Sincronizando..." : "Sincronizar Google"}
-            </button>
-          </div>
+          <span className="inline-flex w-fit rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+            {upcomingMeetings.length} programadas
+          </span>
         </div>
 
         {meetingsError ? <p className="mt-3 text-sm text-alert">{meetingsError}</p> : null}
 
         {upcomingMeetings.length > 0 ? (
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {upcomingMeetings.map((meeting) => {
               const detailHref = meeting.linked_session_id ? `/sessions/${meeting.linked_session_id}` : null;
               const externalHref = meeting.meeting_url ?? meeting.calendar_html_link;
@@ -140,14 +126,14 @@ export default function SessionsPage() {
                   key={`${meeting.event_id ?? meeting.title}-${meeting.start_at ?? "sin-fecha"}`}
                   className="rounded-2xl border border-brand-100 bg-brand-50/45 p-4"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-xs font-medium uppercase tracking-[0.18em] text-brand-700">
                         {meeting.source === "google_calendar" ? "Google Calendar" : "Agenda demo"}
                       </p>
                       <h3 className="mt-1 text-base font-semibold text-ink">{meeting.title}</h3>
                     </div>
-                    <span className="rounded-full border border-brand-200 bg-white px-2.5 py-1 text-xs text-slate-600">
+                    <span className="inline-flex w-fit rounded-full border border-brand-200 bg-white px-2.5 py-1 text-xs text-slate-600">
                       {formatMeetingDate(meeting.start_at)}
                     </span>
                   </div>
@@ -189,11 +175,11 @@ export default function SessionsPage() {
         )}
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {sessions.map((session) => (
           <SessionCard key={session.id} session={session} />
         ))}
-      </div>
+      </section>
 
       {!loading && sessions.length === 0 ? (
         <p className="rounded-2xl border border-brand-200 bg-white/95 p-5 text-sm text-slate-600 shadow-panel">

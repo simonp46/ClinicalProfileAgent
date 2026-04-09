@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,12 +11,15 @@ import {
   getMicrosoftAuthorizationUrl,
   getMyProfile,
   getProfileAssetBlob,
-  logout,
   updateMyProfile,
   uploadProfileAsset,
 } from "@/lib/api";
-import { endSession, getAccessToken } from "@/lib/auth";
+import { getAccessToken } from "@/lib/auth";
 import type { TherapistProfile } from "@/lib/types";
+
+function notifyProfileUpdated(): void {
+  window.dispatchEvent(new Event("profile-updated"));
+}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -153,6 +156,7 @@ export default function ProfilePage() {
         profession: profession || null,
       });
       hydrateForm(updated);
+      notifyProfileUpdated();
       setNotice("Perfil actualizado correctamente.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar el perfil");
@@ -181,6 +185,7 @@ export default function ProfilePage() {
     try {
       const updated = await disconnectGoogleAccount();
       hydrateForm(updated);
+      notifyProfileUpdated();
       setNotice("Cuenta de Google desconectada correctamente.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo desconectar Google");
@@ -209,6 +214,7 @@ export default function ProfilePage() {
     try {
       const updated = await disconnectMicrosoftAccount();
       hydrateForm(updated);
+      notifyProfileUpdated();
       setNotice("Cuenta de Microsoft Teams desconectada correctamente.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo desconectar Microsoft Teams");
@@ -225,6 +231,7 @@ export default function ProfilePage() {
     try {
       const updated = await uploadProfileAsset(asset, file);
       hydrateForm(updated);
+      notifyProfileUpdated();
       setNotice("Archivo cargado correctamente.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo cargar el archivo");
@@ -284,58 +291,45 @@ export default function ProfilePage() {
     }
   }
 
-  async function onLogout(): Promise<void> {
-    try {
-      await logout();
-    } catch {
-      // The client session still needs to be cleared if the refresh cookie is already invalid.
-    } finally {
-      endSession("logout");
-    }
-  }
-
   if (loading) {
-    return <main className="mx-auto max-w-5xl p-6">Cargando perfil...</main>;
+    return <main className="mx-auto max-w-5xl p-4 sm:p-6">Cargando perfil...</main>;
   }
 
   if (!profile) {
-    return <main className="mx-auto max-w-5xl p-6">No se encontro el perfil del usuario.</main>;
+    return <main className="mx-auto max-w-5xl p-4 sm:p-6">No se encontro el perfil del usuario.</main>;
   }
 
   return (
-    <main className="mx-auto max-w-5xl space-y-4 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white p-5 shadow-panel">
-        <div>
-          <p className="text-xs text-slate-500">Cuenta autenticada</p>
-          <h1 className="text-xl font-semibold text-ink">Perfil profesional</h1>
-          <p className="text-sm text-slate-600">{profile.email}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/sessions" className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+    <main className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
+      <header className="rounded-2xl bg-white p-4 shadow-panel sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs text-slate-500">Cuenta autenticada</p>
+            <h1 className="text-xl font-semibold text-ink">Perfil profesional</h1>
+            <p className="text-sm text-slate-600 break-all">{profile.email}</p>
+          </div>
+          <Link href="/sessions" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-sm sm:w-auto">
             Ir a sesiones
           </Link>
-          <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm" onClick={() => void onLogout()}>
-            Cerrar sesion
-          </button>
         </div>
       </header>
 
       {error ? <p className="rounded-xl bg-rose-50 p-3 text-sm text-alert">{error}</p> : null}
       {notice ? <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</p> : null}
 
-      <section className="rounded-2xl bg-white p-5 shadow-panel">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <section className="rounded-2xl bg-white p-4 shadow-panel sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="mb-1 text-lg font-semibold text-ink">Conexion con Google</h2>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm leading-6 text-slate-600">
               Autoriza tu cuenta de Google para consultar Google Calendar, Google Meet y las transcripciones de tus reuniones.
             </p>
           </div>
-          <div className="rounded-2xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm text-ink">
+          <div className="rounded-2xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm text-ink lg:max-w-sm">
             <p className="font-medium">
               Estado: {profile.google_oauth_connected ? "Cuenta conectada" : "Sin autorizacion activa"}
             </p>
-            <p className="text-slate-600">
+            <p className="text-slate-600 break-words">
               {profile.google_oauth_connected
                 ? profile.google_oauth_email || profile.google_account_email || "Cuenta vinculada"
                 : "Conecta Google para habilitar la lectura real de Calendar y Meet."}
@@ -343,7 +337,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button
             className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white"
             disabled={connectingGoogle}
@@ -361,19 +355,19 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-panel">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <section className="rounded-2xl bg-white p-4 shadow-panel sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="mb-1 text-lg font-semibold text-ink">Conexion con Microsoft Teams</h2>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm leading-6 text-slate-600">
               Autoriza tu cuenta de Microsoft 365 para trabajar de forma multiplataforma con Teams, calendario y artefactos de reunion.
             </p>
           </div>
-          <div className="rounded-2xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm text-ink">
+          <div className="rounded-2xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm text-ink lg:max-w-sm">
             <p className="font-medium">
               Estado: {profile.microsoft_oauth_connected ? "Cuenta conectada" : "Sin autorizacion activa"}
             </p>
-            <p className="text-slate-600">
+            <p className="text-slate-600 break-words">
               {profile.microsoft_oauth_connected
                 ? profile.microsoft_oauth_email || profile.microsoft_account_email || "Cuenta vinculada"
                 : "Conecta Microsoft Teams para habilitar futuras sincronizaciones multiplataforma."}
@@ -381,7 +375,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white"
             disabled={connectingMicrosoft}
@@ -399,9 +393,9 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-panel">
+      <section className="rounded-2xl bg-white p-4 shadow-panel sm:p-5">
         <h2 className="mb-2 text-lg font-semibold text-ink">Datos personales y de contacto</h2>
-        <p className="mb-4 text-xs text-slate-500">
+        <p className="mb-4 text-xs leading-5 text-slate-500">
           Puedes trabajar con Google Meet y Microsoft Teams desde un mismo perfil profesional. El pipeline clinico y documental se mantiene comun.
         </p>
         <div className="grid gap-3 md:grid-cols-2">
@@ -459,7 +453,7 @@ export default function ProfilePage() {
 
         <div className="mt-4">
           <button
-            className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white"
+            className="w-full rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white sm:w-auto"
             disabled={saving}
             onClick={() => void onSaveProfile()}
           >
@@ -468,18 +462,18 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <article className="rounded-2xl bg-white p-5 shadow-panel">
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-2xl bg-white p-4 shadow-panel sm:p-5">
           <h3 className="text-base font-semibold text-ink">Foto de perfil</h3>
           <p className="mb-3 text-xs text-slate-500">Formatos: JPG, PNG, WEBP.</p>
           {photoPreviewUrl ? (
             <img
               alt="Foto de perfil"
-              className="mb-3 h-32 w-32 rounded-full border border-slate-300 object-cover"
+              className="mb-3 h-24 w-24 rounded-full border border-slate-300 object-cover sm:h-32 sm:w-32"
               src={photoPreviewUrl}
             />
           ) : (
-            <div className="mb-3 flex h-32 w-32 items-center justify-center rounded-full border border-dashed border-slate-300 text-xs text-slate-500">
+            <div className="mb-3 flex h-24 w-24 items-center justify-center rounded-full border border-dashed border-slate-300 text-xs text-slate-500 sm:h-32 sm:w-32">
               Sin foto
             </div>
           )}
@@ -488,10 +482,11 @@ export default function ProfilePage() {
             accept="image/png,image/jpeg,image/webp"
             disabled={uploading}
             onChange={(event) => void onChangeFile(event, "photo")}
+            className="max-w-full text-sm"
           />
         </article>
 
-        <article className="rounded-2xl bg-white p-5 shadow-panel">
+        <article className="rounded-2xl bg-white p-4 shadow-panel sm:p-5">
           <h3 className="text-base font-semibold text-ink">Firma personal</h3>
           <p className="mb-3 text-xs text-slate-500">Formatos: JPG, PNG, WEBP.</p>
           {signaturePreviewUrl ? (
@@ -510,13 +505,14 @@ export default function ProfilePage() {
             accept="image/png,image/jpeg,image/webp"
             disabled={uploading}
             onChange={(event) => void onChangeFile(event, "signature")}
+            className="max-w-full text-sm"
           />
         </article>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-panel">
+      <section className="rounded-2xl bg-white p-4 shadow-panel sm:p-5">
         <h3 className="text-base font-semibold text-ink">Plantilla para borradores clinicos</h3>
-        <p className="mb-3 text-xs text-slate-500">
+        <p className="mb-3 text-xs leading-5 text-slate-500">
           Puedes cargar una plantilla PDF, DOC, DOCX o DOCS. Esta plantilla se usara para exportar nuevos borradores.
         </p>
         <input
@@ -524,9 +520,10 @@ export default function ProfilePage() {
           accept=".pdf,.doc,.docx,.docs,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           disabled={uploading}
           onChange={(event) => void onChangeFile(event, "template")}
+          className="max-w-full text-sm"
         />
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button
             className="rounded border border-slate-300 px-3 py-1.5 text-sm"
             disabled={!hasTemplatePdf}

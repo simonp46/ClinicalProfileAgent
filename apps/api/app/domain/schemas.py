@@ -41,6 +41,20 @@ class AuthRefreshRequest(BaseModel):
     csrf_token: str
 
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=4, max_length=12)
+    new_password: str = Field(min_length=8)
+
+
+class PasswordResetResponse(BaseModel):
+    message: str
+
+
 class TherapistBase(BaseModel):
     full_name: str
     email: EmailStr

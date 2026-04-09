@@ -9,19 +9,36 @@ from app.api.routes.deps import enforce_csrf_for_refresh, get_current_therapist
 from app.application.services.auth_service import AuthService
 from app.application.services.demo_onboarding_service import DemoOnboardingService
 from app.core.config import settings
-from app.domain.models import Therapist
-from app.domain.schemas import AuthLoginRequest, AuthRegisterRequest, TherapistProfileOut, TokenPair
 from app.db.session import get_db
+from app.domain.models import Therapist
+from app.domain.schemas import (
+    AuthLoginRequest,
+    AuthRegisterRequest,
+    PasswordResetConfirmRequest,
+    PasswordResetRequest,
+    PasswordResetResponse,
+    TherapistProfileOut,
+    TokenPair,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+_PASSWORD_RESET_MESSAGE = (
+    "Si el correo existe en la plataforma, enviamos un codigo de verificacion para "
+    "restablecer la contrasena."
+)
+
 
 @router.post("/login", response_model=TokenPair)
-def login(payload: AuthLoginRequest, response: Response, db: Session = Depends(get_db)) -> TokenPair:
+def login(
+    payload: AuthLoginRequest, response: Response, db: Session = Depends(get_db)
+) -> TokenPair:
     auth = AuthService(db)
     therapist = auth.authenticate(payload.email, payload.password)
     if therapist is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales invalidas")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales invalidas"
+        )
 
     access_token, refresh_token, csrf_token = auth.build_login_tokens(therapist)
     db.commit()
@@ -30,7 +47,9 @@ def login(payload: AuthLoginRequest, response: Response, db: Session = Depends(g
 
 
 @router.post("/register", response_model=TokenPair, status_code=status.HTTP_201_CREATED)
-def register(payload: AuthRegisterRequest, response: Response, db: Session = Depends(get_db)) -> TokenPair:
+def register(
+    payload: AuthRegisterRequest, response: Response, db: Session = Depends(get_db)
+) -> TokenPair:
     if len(payload.password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -43,7 +62,9 @@ def register(payload: AuthRegisterRequest, response: Response, db: Session = Dep
             full_name=payload.full_name,
             email=str(payload.email),
             password=payload.password,
-            google_account_email=str(payload.google_account_email) if payload.google_account_email else None,
+            google_account_email=(
+                str(payload.google_account_email) if payload.google_account_email else None
+            ),
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
@@ -64,6 +85,39 @@ def register(payload: AuthRegisterRequest, response: Response, db: Session = Dep
     return TokenPair(access_token=access_token, csrf_token=csrf_token)
 
 
+@router.post("/request-password-reset", response_model=PasswordResetResponse)
+def request_password_reset(
+    payload: PasswordResetRequest,
+    db: Session = Depends(get_db),
+) -> PasswordResetResponse:
+    auth = AuthService(db)
+    auth.request_password_reset(str(payload.email))
+    db.commit()
+    return PasswordResetResponse(message=_PASSWORD_RESET_MESSAGE)
+
+
+@router.post("/reset-password", response_model=PasswordResetResponse)
+def reset_password(
+    payload: PasswordResetConfirmRequest,
+    db: Session = Depends(get_db),
+) -> PasswordResetResponse:
+    auth = AuthService(db)
+    try:
+        auth.reset_password(
+            email=str(payload.email),
+            code=payload.code,
+            new_password=payload.new_password,
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    db.commit()
+    return PasswordResetResponse(
+        message="Contrasena actualizada correctamente. Ya puedes iniciar sesion."
+    )
+
+
 @router.post("/refresh", response_model=TokenPair)
 def refresh(request: Request, response: Response, db: Session = Depends(get_db)) -> TokenPair:
     enforce_csrf_for_refresh(request)
@@ -74,7 +128,9 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_db))
     auth = AuthService(db)
     therapist = auth.validate_refresh(refresh_token)
     if therapist is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token invalido")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token invalido"
+        )
 
     auth.revoke_refresh(refresh_token)
     access_token, new_refresh_token, csrf_token = auth.build_login_tokens(therapist)

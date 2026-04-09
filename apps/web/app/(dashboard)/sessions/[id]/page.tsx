@@ -63,6 +63,7 @@ export default function SessionDetailPage() {
       setEditedSummary(latestDraft.session_summary);
     }
   }, [latestDraft]);
+
   useEffect(() => {
     if (!session?.patient) {
       return;
@@ -156,6 +157,7 @@ export default function SessionDetailPage() {
       setBusy(false);
     }
   }
+
   async function onSavePatientData(): Promise<void> {
     await updateSessionPatient(sessionId, {
       full_name: patientFullName || null,
@@ -185,7 +187,7 @@ export default function SessionDetailPage() {
   async function onPreviewPdf(documentId: string): Promise<void> {
     const newTab = window.open("", "_blank", "noopener,noreferrer");
     if (!newTab) {
-      throw new Error("El navegador bloqueo la pestaña emergente de previsualizacion.");
+      throw new Error("El navegador bloqueo la pestana emergente de previsualizacion.");
     }
     const blob = await getDocumentFileBlob(documentId, "pdf", "inline");
     const blobUrl = URL.createObjectURL(blob);
@@ -212,11 +214,11 @@ export default function SessionDetailPage() {
   }
 
   if (loading) {
-    return <main className="p-6">Cargando sesion...</main>;
+    return <main className="p-4 sm:p-6">Cargando sesion...</main>;
   }
 
   if (!session) {
-    return <main className="p-6">Sesion no encontrada.</main>;
+    return <main className="p-4 sm:p-6">Sesion no encontrada.</main>;
   }
 
   const transcriptText =
@@ -227,51 +229,51 @@ export default function SessionDetailPage() {
         : transcript?.deidentified_text;
 
   return (
-    <main className="mx-auto max-w-7xl space-y-4 p-6">
-      <header className="rounded-2xl bg-white p-5 shadow-panel">
-        <div className="mb-3 flex items-center justify-between">
+    <main className="mx-auto max-w-7xl space-y-4 p-4 sm:p-6">
+      <header className="rounded-2xl bg-white p-4 shadow-panel sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <Link href="/sessions" className="text-xs text-slate-500 hover:underline">
               Volver a sesiones
             </Link>
-            <h1 className="text-xl font-semibold text-ink">
+            <h1 className="mt-1 text-xl font-semibold text-ink sm:text-2xl">
               {session.patient?.first_name} {session.patient?.last_name}
             </h1>
-            <p className="text-sm text-slate-600">Sesion ID: {session.id}</p>
+            <p className="break-all text-sm text-slate-600">Sesion ID: {session.id}</p>
           </div>
           <StatusBadge value={session.status} />
         </div>
 
-        <div className="grid gap-2 text-xs text-slate-600 md:grid-cols-3">
+        <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-2 xl:grid-cols-3">
           <p>Consentimiento: {session.patient?.consent_reference ?? "N/A"}</p>
           <p>Intake: {session.patient?.intake_id ?? "N/A"}</p>
           <p>Terapeuta: {session.therapist?.full_name ?? "N/A"}</p>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <button
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy}
             onClick={() => runAction(() => processSession(sessionId))}
           >
             Procesar transcript
           </button>
           <button
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy}
             onClick={() => runAction(() => generateDraft(sessionId))}
           >
             Generar borrador
           </button>
           <button
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy}
             onClick={() => runAction(() => regenerateDraft(sessionId))}
           >
             Regenerar borrador
           </button>
           <button
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy || !latestDraft}
             onClick={onCreateDoc}
           >
@@ -283,7 +285,7 @@ export default function SessionDetailPage() {
       {error ? <p className="rounded-xl bg-rose-50 p-3 text-sm text-alert">{error}</p> : null}
 
       <Panel title="Datos Personales del Paciente">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <label className="text-sm text-slate-700">
             Nombre
             <input
@@ -335,7 +337,7 @@ export default function SessionDetailPage() {
               onChange={(event) => setPatientGender(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-sm text-slate-700 xl:col-span-2">
             Direccion
             <input
               className="mt-1 w-full rounded-xl border border-slate-300 p-2"
@@ -359,7 +361,7 @@ export default function SessionDetailPage() {
               onChange={(event) => setPatientProfession(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700 md:col-span-2">
+          <label className="text-sm text-slate-700 md:col-span-2 xl:col-span-2">
             Email
             <input
               type="email"
@@ -371,7 +373,7 @@ export default function SessionDetailPage() {
         </div>
         <div className="mt-3">
           <button
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:w-auto"
             disabled={busy}
             onClick={() => runAction(() => onSavePatientData())}
           >
@@ -380,27 +382,27 @@ export default function SessionDetailPage() {
         </div>
       </Panel>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2">
         <Panel
           title="Transcript"
           actions={
-            <div className="flex gap-1 text-xs">
-              <button className="rounded px-2 py-1 hover:bg-slate-100" onClick={() => setActiveTab("raw")}>
+            <>
+              <button className="rounded px-2 py-1 text-xs hover:bg-slate-100" onClick={() => setActiveTab("raw")}>
                 Raw
               </button>
               <button
-                className="rounded px-2 py-1 hover:bg-slate-100"
+                className="rounded px-2 py-1 text-xs hover:bg-slate-100"
                 onClick={() => setActiveTab("normalized")}
               >
                 Normalizado
               </button>
-              <button className="rounded px-2 py-1 hover:bg-slate-100" onClick={() => setActiveTab("deid")}>
+              <button className="rounded px-2 py-1 text-xs hover:bg-slate-100" onClick={() => setActiveTab("deid")}>
                 Desidentificado
               </button>
-            </div>
+            </>
           }
         >
-          <pre className="max-h-80 overflow-auto rounded bg-slate-50 p-3 text-xs">{transcriptText || "Sin transcript"}</pre>
+          <pre className="max-h-80 overflow-auto rounded bg-slate-50 p-3 text-xs leading-6">{transcriptText || "Sin transcript"}</pre>
         </Panel>
 
         <Panel title="Borrador Clinico (Editor)">
@@ -410,13 +412,13 @@ export default function SessionDetailPage() {
                 Version {latestDraft.version} | Modelo {latestDraft.llm_model} | Prompt {latestDraft.prompt_version}
               </p>
               <textarea
-                className="mb-2 h-20 w-full rounded-xl border border-slate-300 p-3 text-sm"
+                className="mb-2 h-24 w-full rounded-xl border border-slate-300 p-3 text-sm"
                 value={editedSummary}
                 onChange={(event) => setEditedSummary(event.target.value)}
                 placeholder="Resumen de sesion"
               />
               <textarea
-                className="h-56 w-full rounded-xl border border-slate-300 p-3 text-sm"
+                className="h-48 w-full rounded-xl border border-slate-300 p-3 text-sm sm:h-56"
                 value={editedProfile}
                 onChange={(event) => setEditedProfile(event.target.value)}
               />
@@ -426,9 +428,9 @@ export default function SessionDetailPage() {
                 value={reviewNotes}
                 onChange={(event) => setReviewNotes(event.target.value)}
               />
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <button
-                  className="rounded bg-safe px-3 py-1.5 text-sm text-white"
+                  className="rounded bg-safe px-3 py-2 text-sm text-white"
                   disabled={busy}
                   onClick={() =>
                     runAction(() =>
@@ -443,7 +445,7 @@ export default function SessionDetailPage() {
                   Aprobar
                 </button>
                 <button
-                  className="rounded bg-alert px-3 py-1.5 text-sm text-white"
+                  className="rounded bg-alert px-3 py-2 text-sm text-white"
                   disabled={busy}
                   onClick={() =>
                     runAction(() =>
@@ -466,7 +468,7 @@ export default function SessionDetailPage() {
 
         <Panel title="JSON Estructurado">
           {latestDraft ? (
-            <pre className="max-h-80 overflow-auto rounded bg-slate-50 p-3 text-xs">
+            <pre className="max-h-80 overflow-auto rounded bg-slate-50 p-3 text-xs leading-6">
               {JSON.stringify(latestDraft.structured_json, null, 2)}
             </pre>
           ) : (
@@ -478,12 +480,12 @@ export default function SessionDetailPage() {
           {session.risk_flags.length > 0 ? (
             <ul className="space-y-2">
               {session.risk_flags.map((flag) => (
-                <li key={flag.id} className="rounded-lg border border-slate-200 p-2">
+                <li key={flag.id} className="rounded-lg border border-slate-200 p-3">
                   <p className="text-xs font-semibold uppercase text-alert">
                     {flag.severity} - {flag.category}
                   </p>
-                  <p className="text-sm">{flag.snippet}</p>
-                  <p className="text-xs text-slate-600">{flag.rationale}</p>
+                  <p className="text-sm leading-6">{flag.snippet}</p>
+                  <p className="text-xs leading-5 text-slate-600">{flag.rationale}</p>
                 </li>
               ))}
             </ul>
@@ -496,57 +498,57 @@ export default function SessionDetailPage() {
           {sortedDocuments.length > 0 ? (
             <ul className="space-y-2">
               {sortedDocuments.map((doc) => (
-                <li key={doc.id} className="rounded-lg border border-slate-200 p-2">
-                  <p className="text-xs text-slate-500">ID: {doc.id}</p>
+                <li key={doc.id} className="rounded-lg border border-slate-200 p-3">
+                  <p className="break-all text-xs text-slate-500">ID: {doc.id}</p>
                   <p className="text-sm">Estado: {doc.status}</p>
                   {doc.google_doc_url ? (
                     <a className="text-sm text-blue-700 underline" href={doc.google_doc_url}>
                       Abrir documento fuente
                     </a>
                   ) : null}
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                     <button
-                      className="rounded border border-slate-300 px-2 py-1 text-xs"
+                      className="rounded border border-slate-300 px-2 py-2 text-xs"
                       onClick={() => runAction(() => exportPdf(doc.id))}
                     >
                       Exportar PDF
                     </button>
                     <button
-                      className="rounded border border-slate-300 px-2 py-1 text-xs"
+                      className="rounded border border-slate-300 px-2 py-2 text-xs"
                       onClick={() => runAction(() => onPreviewPdf(doc.id))}
                     >
                       Previsualizar PDF
                     </button>
                     <button
-                      className="rounded border border-slate-300 px-2 py-1 text-xs"
+                      className="rounded border border-slate-300 px-2 py-2 text-xs"
                       onClick={() => runAction(() => onDownloadPdf(doc.id))}
                     >
                       Descargar PDF
                     </button>
                     <button
-                      className="rounded border border-slate-300 px-2 py-1 text-xs"
+                      className="rounded border border-slate-300 px-2 py-2 text-xs"
                       onClick={() => runAction(() => exportDocx(doc.id))}
                     >
                       Exportar DOCX
                     </button>
                     <button
-                      className="rounded border border-slate-300 px-2 py-1 text-xs"
+                      className="rounded border border-slate-300 px-2 py-2 text-xs"
                       onClick={() => runAction(() => onDownloadDocx(doc.id))}
                     >
                       Descargar DOCX
                     </button>
                     <button
-                      className="rounded border border-rose-300 px-2 py-1 text-xs text-rose-700"
+                      className="rounded border border-rose-300 px-2 py-2 text-xs text-rose-700"
                       onClick={() => runAction(() => onDeleteDocument(doc.id))}
                     >
                       Eliminar borrador
                     </button>
                   </div>
                   {doc.exported_pdf_path ? (
-                    <p className="mt-1 text-xs text-slate-600">PDF: {doc.exported_pdf_path}</p>
+                    <p className="mt-1 break-all text-xs text-slate-600">PDF: {doc.exported_pdf_path}</p>
                   ) : null}
                   {doc.exported_docx_path ? (
-                    <p className="mt-1 text-xs text-slate-600">DOCX: {doc.exported_docx_path}</p>
+                    <p className="mt-1 break-all text-xs text-slate-600">DOCX: {doc.exported_docx_path}</p>
                   ) : null}
                 </li>
               ))}
@@ -560,10 +562,10 @@ export default function SessionDetailPage() {
           {auditLogs.length > 0 ? (
             <ul className="space-y-2">
               {auditLogs.map((item) => (
-                <li key={item.id} className="rounded-lg border border-slate-200 p-2 text-xs">
+                <li key={item.id} className="rounded-lg border border-slate-200 p-3 text-xs">
                   <p className="font-semibold">{item.action}</p>
                   <p className="text-slate-500">{new Date(item.created_at).toLocaleString("es-CO")}</p>
-                  <pre className="mt-1 rounded bg-slate-50 p-2">{JSON.stringify(item.metadata, null, 2)}</pre>
+                  <pre className="mt-1 overflow-auto rounded bg-slate-50 p-2 leading-5">{JSON.stringify(item.metadata, null, 2)}</pre>
                 </li>
               ))}
             </ul>
@@ -575,22 +577,3 @@ export default function SessionDetailPage() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -70,8 +70,24 @@ Provide these vars and set mocks false:
 - `GOOGLE_IMPERSONATED_USER` (optional fallback if you are not using therapist OAuth)
 - `GOOGLE_DOCS_OUTPUT_FOLDER_ID` (optional)
 - `GOOGLE_WEBHOOK_SHARED_SECRET` (recommended)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`
 
 Then open `Perfil profesional`, press `Conectar Google`, and authorize the therapist's real Google account. That authorization is what enables reading Google Calendar, Google Meet metadata, and transcript-linked Google Docs with real user consent.
+
+## Password Reset Email (Brevo SMTP)
+The password reset flow is already wired to standard SMTP and can run with Brevo's free SMTP relay.
+
+Recommended production values:
+- `SMTP_HOST=smtp-relay.brevo.com`
+- `SMTP_PORT=587`
+- `SMTP_USE_TLS=true`
+- `SMTP_USE_SSL=false`
+- `USE_MOCK_EMAIL=false`
+
+You still need to create SMTP credentials in Brevo and place them in:
+- `SMTP_USERNAME`
+- `SMTP_PASSWORD`
+- `SMTP_FROM_EMAIL`
 
 ## Make Commands
 - `make dev` - full stack
@@ -111,6 +127,8 @@ Implemented endpoints:
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/request-password-reset`
+- `POST /api/v1/auth/reset-password`
 - `GET /api/v1/profile/me`
 - `PATCH /api/v1/profile/me`
 - `POST /api/v1/profile/me/google/connect`
@@ -199,6 +217,7 @@ See `docs/architecture.md`.
 
 ## Registro y Perfil del Terapeuta
 - La pantalla de login ahora permite `Ingresar` y `Registrar` nuevas cuentas para demo.
+- El acceso incluye `Restablecer contrasena` debajo del boton `Ingresar`, con envio de codigo por correo si el usuario ya existe en la base de datos.
 - Vista de perfil: `http://localhost:3000/profile` (requiere sesion iniciada).
 - Desde perfil se puede:
   - actualizar nombre y datos de contacto del terapeuta
@@ -217,6 +236,8 @@ See `docs/architecture.md`.
 - Cuando falta informacion, se registra como `No referido`.
 - Se mantiene redaccion en tercera persona y estilo clinico profesional.
 - Si el usuario carga plantilla en perfil, el sistema intenta respetar el orden de encabezados detectado en la plantilla.
+
+
 
 
 

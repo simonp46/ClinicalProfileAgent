@@ -93,6 +93,24 @@ export async function logout(): Promise<void> {
   });
 }
 
+export async function requestPasswordReset(email: string): Promise<{ message: string }> {
+  return request<{ message: string }>("/api/v1/auth/request-password-reset", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(payload: {
+  email: string;
+  code: string;
+  new_password: string;
+}): Promise<{ message: string }> {
+  return request<{ message: string }>("/api/v1/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function getMyProfile(): Promise<TherapistProfile> {
   return request<TherapistProfile>("/api/v1/profile/me");
 }
