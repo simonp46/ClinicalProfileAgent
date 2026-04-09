@@ -1,4 +1,6 @@
-﻿# therapy-meet-copilot
+# therapy-meet-copilot
+
+[![CI](https://github.com/simonp46/ClinicalProfileAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/simonp46/ClinicalProfileAgent/actions/workflows/ci.yml)
 
 Clinical documentation copilot MVP for therapists.
 
@@ -71,7 +73,8 @@ Provide these vars and set mocks false:
 
 Then open `Perfil profesional`, press `Conectar Google`, and authorize the therapist's real Google account. That authorization is what enables reading Google Calendar, Google Meet metadata, and transcript-linked Google Docs with real user consent.
 
-## Make Commands`r`n- `make dev` - full stack
+## Make Commands
+- `make dev` - full stack
 - `make test` - backend + frontend tests
 - `make lint` - backend + frontend lint/type checks
 - `make seed` - seed therapist/patient/session + prompts

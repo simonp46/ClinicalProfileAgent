@@ -1,0 +1,98 @@
+﻿name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend Tests and Lint
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: therapy_copilot
+          POSTGRES_USER: therapy
+          POSTGRES_PASSWORD: therapy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U therapy -d therapy_copilot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg://therapy:therapy@localhost:5432/therapy_copilot
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/1
+      USE_MOCK_OPENAI: "true"
+      USE_MOCK_GOOGLE: "true"
+      CSRF_ENABLED: "false"
+      API_CORS_ORIGINS: http://localhost:3000
+      SECRET_KEY: github-actions-secret
+      PYTHONPATH: apps/api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/api/requirements.txt
+          pip install black ruff
+
+      - name: Run backend lint
+        working-directory: apps/api
+        run: |
+          ruff check .
+
+      - name: Run backend tests
+        working-directory: apps/api
+        run: |
+          pytest -q
+
+  frontend:
+    name: Frontend Lint and Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Run frontend lint
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Run frontend build
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run build
