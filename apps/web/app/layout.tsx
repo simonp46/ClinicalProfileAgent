@@ -1,10 +1,15 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Respiro Integral | Copiloto Clinico",
   description: "Copiloto de documentacion clinica para terapeutas de Respiro Integral",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({

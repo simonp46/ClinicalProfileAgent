@@ -89,6 +89,38 @@ You still need to create SMTP credentials in Brevo and place them in:
 - `SMTP_PASSWORD`
 - `SMTP_FROM_EMAIL`
 
+
+## Production CI/CD
+The repository includes:
+- `CI`: lint + tests on pull requests and pushes to `main`
+- `Deploy Production`: automatic deploy to the Hetzner server after the `CI` workflow succeeds on `main`
+
+Files involved:
+- `.github/workflows/ci.yml`
+- `.github/workflows/deploy-production.yml`
+- `docker-compose.prod.yml`
+- `scripts/deploy_prod.sh`
+
+### GitHub Secrets Required
+Configure these repository or environment secrets in GitHub before enabling auto deploy:
+- `PROD_SSH_HOST`: public IP or hostname of the Hetzner server
+- `PROD_SSH_PORT`: SSH port, usually `22`
+- `PROD_SSH_USER`: Linux user with permission to deploy, for example `root`
+- `PROD_SSH_PRIVATE_KEY`: private SSH key matching the public key installed on the server
+- `PROD_SSH_KNOWN_HOSTS`: output of `ssh-keyscan -H <host>`
+- `PROD_APP_DIR`: absolute path to the app on the server, for example `/root/ClinicalProfileAgent`
+
+### Deployment Flow
+1. Open a pull request from `DEV` to `main`
+2. Merge after `CI` passes
+3. GitHub Actions runs `Deploy Production`
+4. The server pulls `main`, rebuilds containers with `docker-compose.prod.yml`, and waits for `http://127.0.0.1:8000/health`
+
+### Server Requirement
+The server repository path must contain:
+- `.env` with production values
+- `docker-compose.prod.yml`
+- `scripts/deploy_prod.sh`
 ## Make Commands
 - `make dev` - full stack
 - `make test` - backend + frontend tests
@@ -236,6 +268,7 @@ See `docs/architecture.md`.
 - Cuando falta informacion, se registra como `No referido`.
 - Se mantiene redaccion en tercera persona y estilo clinico profesional.
 - Si el usuario carga plantilla en perfil, el sistema intenta respetar el orden de encabezados detectado en la plantilla.
+
 
 
 

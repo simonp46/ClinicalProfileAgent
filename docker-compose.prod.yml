@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-therapy_copilot}
+      POSTGRES_USER: ${POSTGRES_USER:-therapy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-therapy}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-therapy} -d ${POSTGRES_DB:-therapy_copilot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app/apps/api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - artifacts_data:/app/data/artifacts
+    command: >
+      sh -lc "cd /app/apps/api &&
+      alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/worker.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app/apps/api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - artifacts_data:/app/data/artifacts
+    command: >
+      sh -lc "cd /app/apps/api &&
+      celery -A app.worker.celery_app worker --loglevel=INFO"
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3000:3000"
+    command: >
+      sh -lc "cd /app/apps/web &&
+      npm ci &&
+      npm run build &&
+      npm run start -- --hostname 0.0.0.0 --port 3000"
+
+volumes:
+  postgres_data:
+  artifacts_data:
