@@ -51,6 +51,8 @@ def update_profile_me(
     updates = payload.model_dump(exclude_unset=True)
     if "google_account_email" in updates and updates["google_account_email"] is not None:
         updates["google_account_email"] = str(updates["google_account_email"])
+    if "microsoft_account_email" in updates and updates["microsoft_account_email"] is not None:
+        updates["microsoft_account_email"] = str(updates["microsoft_account_email"])
     if "contact_email" in updates and updates["contact_email"] is not None:
         updates["contact_email"] = str(updates["contact_email"])
 
@@ -478,3 +480,4 @@ def _log_profile_update(
         action=action,
         metadata=metadata,
     )
+

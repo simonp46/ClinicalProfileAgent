@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,6 +36,7 @@ export default function ProfilePage() {
 
   const [fullName, setFullName] = useState("");
   const [googleAccountEmail, setGoogleAccountEmail] = useState("");
+  const [microsoftAccountEmail, setMicrosoftAccountEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [address, setAddress] = useState("");
@@ -106,11 +107,15 @@ export default function ProfilePage() {
 
   const hasTemplatePdf = useMemo(() => Boolean(profile?.template_pdf_path), [profile?.template_pdf_path]);
   const hasTemplateDocx = useMemo(() => Boolean(profile?.template_docx_path), [profile?.template_docx_path]);
+  const normalizedGoogleEmail = googleAccountEmail.trim().toLowerCase();
+  const isPersonalGmail = normalizedGoogleEmail.endsWith("@gmail.com");
+  const hasGoogleWorkspaceDomain = normalizedGoogleEmail.length > 0 && !isPersonalGmail;
 
   function hydrateForm(data: TherapistProfile): void {
     setProfile(data);
     setFullName(data.full_name ?? "");
     setGoogleAccountEmail(data.google_account_email ?? "");
+    setMicrosoftAccountEmail(data.microsoft_account_email ?? "");
     setPhone(data.phone ?? "");
     setContactEmail(data.contact_email ?? "");
     setAddress(data.address ?? "");
@@ -150,6 +155,7 @@ export default function ProfilePage() {
       const updated = await updateMyProfile({
         full_name: fullName || null,
         google_account_email: googleAccountEmail || null,
+        microsoft_account_email: microsoftAccountEmail || null,
         phone: phone || null,
         contact_email: contactEmail || null,
         address: address || null,
@@ -306,7 +312,7 @@ export default function ProfilePage() {
           <div>
             <p className="text-xs text-slate-500">Cuenta autenticada</p>
             <h1 className="text-xl font-semibold text-ink">Perfil profesional</h1>
-            <p className="text-sm text-slate-600 break-all">{profile.email}</p>
+            <p className="break-all text-sm text-slate-600">{profile.email}</p>
           </div>
           <Link href="/sessions" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center text-sm sm:w-auto">
             Ir a sesiones
@@ -329,12 +335,28 @@ export default function ProfilePage() {
             <p className="font-medium">
               Estado: {profile.google_oauth_connected ? "Cuenta conectada" : "Sin autorizacion activa"}
             </p>
-            <p className="text-slate-600 break-words">
+            <p className="break-words text-slate-600">
               {profile.google_oauth_connected
                 ? profile.google_oauth_email || profile.google_account_email || "Cuenta vinculada"
                 : "Conecta Google para habilitar la lectura real de Calendar y Meet."}
             </p>
           </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          {isPersonalGmail ? (
+            <p>
+              Se detecto una cuenta <span className="font-medium">@gmail.com</span>. Puedes conectarla, pero corresponde a una cuenta personal y no a un dominio administrado de Google Workspace.
+            </p>
+          ) : hasGoogleWorkspaceDomain ? (
+            <p>
+              Se detecto un dominio personalizado para Google Workspace. La cuenta parece lista para integraciones corporativas.
+            </p>
+          ) : (
+            <p>
+              Ingresa tu correo de Google para identificar si se trata de una cuenta personal <span className="font-medium">@gmail.com</span> o de un dominio administrado.
+            </p>
+          )}
         </div>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -367,12 +389,28 @@ export default function ProfilePage() {
             <p className="font-medium">
               Estado: {profile.microsoft_oauth_connected ? "Cuenta conectada" : "Sin autorizacion activa"}
             </p>
-            <p className="text-slate-600 break-words">
+            <p className="break-words text-slate-600">
               {profile.microsoft_oauth_connected
                 ? profile.microsoft_oauth_email || profile.microsoft_account_email || "Cuenta vinculada"
                 : "Conecta Microsoft Teams para habilitar futuras sincronizaciones multiplataforma."}
             </p>
           </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <label className="min-w-0 text-sm text-slate-700">
+            Cuenta Microsoft para Teams
+            <input
+              type="email"
+              placeholder="usuario@outlook.com"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
+              value={microsoftAccountEmail}
+              onChange={(event) => setMicrosoftAccountEmail(event.target.value)}
+            />
+            <span className="mt-1 block text-xs leading-5 text-slate-500">
+              Puedes usar cuentas con dominio <span className="font-medium">@hotmail.com</span>, <span className="font-medium">@outlook.com</span> o cualquier dominio valido de Microsoft 365.
+            </span>
+          </label>
         </div>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -399,52 +437,53 @@ export default function ProfilePage() {
           Puedes trabajar con Google Meet y Microsoft Teams desde un mismo perfil profesional. El pipeline clinico y documental se mantiene comun.
         </p>
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Nombre completo
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Correo de Google Workspace
             <input
               type="email"
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              placeholder="usuario@gmail.com o usuario@empresa.com"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={googleAccountEmail}
               onChange={(event) => setGoogleAccountEmail(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Telefono
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Email de contacto
             <input
               type="email"
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={contactEmail}
               onChange={(event) => setContactEmail(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700 md:col-span-2">
+          <label className="min-w-0 text-sm text-slate-700 md:col-span-2">
             Direccion
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={address}
               onChange={(event) => setAddress(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700 md:col-span-2">
+          <label className="min-w-0 text-sm text-slate-700 md:col-span-2">
             Profesion
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={profession}
               onChange={(event) => setProfession(event.target.value)}
             />

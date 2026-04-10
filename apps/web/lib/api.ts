@@ -118,6 +118,7 @@ export async function getMyProfile(): Promise<TherapistProfile> {
 export async function updateMyProfile(payload: {
   full_name?: string | null;
   google_account_email?: string | null;
+  microsoft_account_email?: string | null;
   phone?: string | null;
   contact_email?: string | null;
   address?: string | null;
@@ -298,5 +299,4 @@ export async function getAuditLogs(entityType: string, entityId: string): Promis
   const data = await request<{ items: AuditLogItem[] }>(`/api/v1/audit-logs?${params.toString()}`);
   return data.items;
 }
-
 
