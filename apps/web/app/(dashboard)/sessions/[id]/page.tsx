@@ -10,8 +10,6 @@ import {
   approveDraft,
   createGoogleDoc,
   deleteGeneratedDocument,
-  exportDocx,
-  exportPdf,
   generateDraft,
   getAuditLogs,
   getDocumentFileBlob,
@@ -24,6 +22,11 @@ import {
 } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import type { AuditLogItem, SessionDetail, TranscriptPayload } from "@/lib/types";
+
+type ActionOutcome =
+  | { kind: "pending" }
+  | { kind: "success"; message: string }
+  | { kind: "error"; message: string };
 
 export default function SessionDetailPage() {
   const params = useParams<{ id: string }>();
@@ -47,6 +50,7 @@ export default function SessionDetailPage() {
   const [patientProfession, setPatientProfession] = useState("");
   const [patientEmail, setPatientEmail] = useState("");
   const [activeTab, setActiveTab] = useState<"raw" | "normalized" | "deid">("deid");
+  const [showProcessedData, setShowProcessedData] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +116,24 @@ export default function SessionDetailPage() {
     void run();
   }, [router, sessionId]);
 
+  function getLatestJob(sessionData: SessionDetail | null, jobType: string) {
+    if (!sessionData) {
+      return null;
+    }
+    return (
+      [...sessionData.processing_jobs]
+        .filter((job) => job.job_type === jobType)
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0] ?? null
+    );
+  }
+
+  function getJobCount(sessionData: SessionDetail | null, jobType: string) {
+    if (!sessionData) {
+      return 0;
+    }
+    return sessionData.processing_jobs.filter((job) => job.job_type === jobType).length;
+  }
+
   async function refreshAll() {
     const [sessionResult, transcriptResult, logsResult] = await Promise.allSettled([
       getSession(sessionId),
@@ -123,33 +145,90 @@ export default function SessionDetailPage() {
       throw sessionResult.reason;
     }
 
-    setSession(sessionResult.value);
-    setTranscript(transcriptResult.status === "fulfilled" ? transcriptResult.value : null);
-    setAuditLogs(logsResult.status === "fulfilled" ? logsResult.value : []);
+    const nextSession = sessionResult.value;
+    const nextTranscript = transcriptResult.status === "fulfilled" ? transcriptResult.value : null;
+    const nextAuditLogs = logsResult.status === "fulfilled" ? logsResult.value : [];
+
+    setSession(nextSession);
+    setTranscript(nextTranscript);
+    setAuditLogs(nextAuditLogs);
+
+    return {
+      session: nextSession,
+      transcript: nextTranscript,
+      auditLogs: nextAuditLogs,
+    };
   }
+
 
   async function runAction(
     fn: () => Promise<unknown>,
-    options?: { successMessage?: string; pollAfter?: boolean },
+    options?: {
+      pendingMessage?: string;
+      successMessage?: string;
+      errorMessage?: string;
+      pollResolver?: (payload: { session: SessionDetail; transcript: TranscriptPayload | null }) => ActionOutcome;
+      pollAttempts?: number;
+      pollIntervalMs?: number;
+      timeoutMessage?: string;
+    },
   ) {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
+      if (options?.pendingMessage) {
+        setNotice(options.pendingMessage);
+      }
+
       await fn();
+      const refreshed = await refreshAll();
+
+      if (options?.pollResolver) {
+        const immediateOutcome = options.pollResolver({
+          session: refreshed.session,
+          transcript: refreshed.transcript,
+        });
+
+        if (immediateOutcome.kind === "success") {
+          setNotice(immediateOutcome.message);
+          return;
+        }
+
+        if (immediateOutcome.kind === "error") {
+          throw new Error(immediateOutcome.message);
+        }
+
+        const attempts = options.pollAttempts ?? 6;
+        const intervalMs = options.pollIntervalMs ?? 2500;
+
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+          const next = await refreshAll();
+          const outcome = options.pollResolver({
+            session: next.session,
+            transcript: next.transcript,
+          });
+
+          if (outcome.kind === "success") {
+            setNotice(outcome.message);
+            return;
+          }
+
+          if (outcome.kind === "error") {
+            throw new Error(outcome.message);
+          }
+        }
+
+        setNotice(options.timeoutMessage ?? "La accion sigue en proceso. Refresca la sesion en unos segundos.");
+        return;
+      }
+
       if (options?.successMessage) {
         setNotice(options.successMessage);
       }
-      await refreshAll();
-
-      if (options?.pollAfter) {
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-          await new Promise((resolve) => window.setTimeout(resolve, 2500));
-          await refreshAll();
-        }
-      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Accion fallida");
+      setError(err instanceof Error ? err.message : options?.errorMessage ?? "Accion fallida");
     } finally {
       setBusy(false);
     }
@@ -158,14 +237,21 @@ export default function SessionDetailPage() {
   async function onCreateDoc() {
     setBusy(true);
     setError(null);
+    setNotice("Creando Google Doc...");
     try {
+      const baselineDocuments = session?.documents.length ?? 0;
       const freshSession = await getSession(sessionId);
       const draft = freshSession.drafts?.[0] ?? null;
       if (!draft) {
         throw new Error("No hay borrador disponible. Genera o regenera un borrador primero.");
       }
       await createGoogleDoc(draft.id);
-      await refreshAll();
+      const refreshed = await refreshAll();
+      if (refreshed.session.documents.length > baselineDocuments) {
+        setNotice("Google Doc creado correctamente.");
+        return;
+      }
+      setNotice("La solicitud finalizo, pero no pudimos confirmar el nuevo documento. Refresca la sesion.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear documento");
     } finally {
@@ -199,29 +285,15 @@ export default function SessionDetailPage() {
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
-  async function onPreviewPdf(documentId: string): Promise<void> {
-    const newTab = window.open("", "_blank", "noopener,noreferrer");
-    if (!newTab) {
-      throw new Error("El navegador bloqueo la pestana emergente de previsualizacion.");
-    }
-    const blob = await getDocumentFileBlob(documentId, "pdf", "inline");
-    const blobUrl = URL.createObjectURL(blob);
-    newTab.location.href = blobUrl;
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-  }
 
   async function onDownloadPdf(documentId: string): Promise<void> {
     const blob = await getDocumentFileBlob(documentId, "pdf", "attachment");
     triggerBrowserDownload(blob, `clinical-draft-${documentId}.pdf`);
   }
 
-  async function onDownloadDocx(documentId: string): Promise<void> {
-    const blob = await getDocumentFileBlob(documentId, "docx", "attachment");
-    triggerBrowserDownload(blob, `clinical-draft-${documentId}.docx`);
-  }
 
   async function onDeleteDocument(documentId: string): Promise<void> {
-    const confirmed = window.confirm("Se eliminara este borrador/documento generado. ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿Deseas continuar?");
+    const confirmed = window.confirm("Se eliminara este borrador/documento generado. Deseas continuar?");
     if (!confirmed) {
       return;
     }
@@ -244,7 +316,7 @@ export default function SessionDetailPage() {
         : transcript?.deidentified_text;
 
   return (
-    <main className="mx-auto max-w-7xl space-y-4 p-4 sm:p-6">
+    <main className="mx-auto max-w-7xl space-y-4 overflow-x-hidden p-4 sm:p-6">
       <header className="rounded-2xl bg-white p-4 shadow-panel sm:p-5">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -269,21 +341,135 @@ export default function SessionDetailPage() {
           <button
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy}
-            onClick={() => runAction(() => processSession(sessionId), { successMessage: "Procesamiento en cola. El estado se actualizara automaticamente.", pollAfter: true })}
+            onClick={() => {
+              const baselineTranscriptId = transcript?.id ?? null;
+              const baselineJobCount = getJobCount(session, "ingest_transcript");
+              void runAction(() => processSession(sessionId), {
+                pendingMessage: "Procesamiento en cola. El estado se actualizara automaticamente.",
+                errorMessage: "No se pudo procesar la transcripcion.",
+                timeoutMessage: "La transcripcion sigue procesandose. Refresca la sesion en unos segundos.",
+                pollResolver: ({ session: currentSession, transcript: currentTranscript }) => {
+                  const latestJob = getLatestJob(currentSession, "ingest_transcript");
+                  const hasNewJob = getJobCount(currentSession, "ingest_transcript") > baselineJobCount;
+
+                  if (latestJob?.status === "failed" && hasNewJob) {
+                    return {
+                      kind: "error",
+                      message: latestJob.error_message || "La transcripcion fallo durante el procesamiento.",
+                    };
+                  }
+
+                  if (
+                    (latestJob?.status === "success" && hasNewJob) ||
+                    (!!currentTranscript && currentTranscript.id !== baselineTranscriptId)
+                  ) {
+                    return { kind: "success", message: "Transcripcion procesada correctamente." };
+                  }
+
+                  if (currentSession.status === "failed") {
+                    return {
+                      kind: "error",
+                      message: "La sesion quedo en estado fallido durante el procesamiento.",
+                    };
+                  }
+
+                  return { kind: "pending" };
+                },
+              });
+            }}
           >
             Procesar transcript
           </button>
           <button
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy}
-            onClick={() => runAction(() => generateDraft(sessionId), { successMessage: "Generacion de borrador en cola. Actualizando estado...", pollAfter: true })}
+            onClick={() => {
+              const baselineDraftCount = session?.drafts.length ?? 0;
+              const baselineLatestDraftId = latestDraft?.id ?? null;
+              const baselineJobCount = getJobCount(session, "generate_draft");
+              void runAction(() => generateDraft(sessionId), {
+                pendingMessage: "Generacion de borrador en cola. Actualizando estado...",
+                errorMessage: "No se pudo generar el borrador.",
+                timeoutMessage: "La generacion del borrador sigue en proceso. Refresca la sesion en unos segundos.",
+                pollResolver: ({ session: currentSession }) => {
+                  const latestJob = getLatestJob(currentSession, "generate_draft");
+                  const hasNewJob = getJobCount(currentSession, "generate_draft") > baselineJobCount;
+                  const currentLatestDraft = currentSession.drafts?.[0] ?? null;
+
+                  if (latestJob?.status === "failed" && hasNewJob) {
+                    return {
+                      kind: "error",
+                      message: latestJob.error_message || "La generacion del borrador fallo.",
+                    };
+                  }
+
+                  if (
+                    (latestJob?.status === "success" && hasNewJob) ||
+                    currentSession.drafts.length > baselineDraftCount ||
+                    (!!currentLatestDraft && currentLatestDraft.id !== baselineLatestDraftId)
+                  ) {
+                    return { kind: "success", message: "Borrador generado correctamente." };
+                  }
+
+                  if (currentSession.status === "failed") {
+                    return {
+                      kind: "error",
+                      message: "La sesion quedo en estado fallido durante la generacion.",
+                    };
+                  }
+
+                  return { kind: "pending" };
+                },
+              });
+            }}
           >
             Generar borrador
           </button>
           <button
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy}
-            onClick={() => runAction(() => regenerateDraft(sessionId), { successMessage: "Regeneracion de borrador en cola. Actualizando estado...", pollAfter: true })}
+            onClick={() => {
+              const baselineDraftCount = session?.drafts.length ?? 0;
+              const baselineLatestDraftId = latestDraft?.id ?? null;
+              const baselineLatestVersion = latestDraft?.version ?? 0;
+              const baselineJobCount = getJobCount(session, "generate_draft");
+              void runAction(() => regenerateDraft(sessionId), {
+                pendingMessage: "Regeneracion de borrador en cola. Actualizando estado...",
+                errorMessage: "No se pudo regenerar el borrador.",
+                timeoutMessage: "La regeneracion sigue en proceso. Refresca la sesion en unos segundos.",
+                pollResolver: ({ session: currentSession }) => {
+                  const latestJob = getLatestJob(currentSession, "generate_draft");
+                  const hasNewJob = getJobCount(currentSession, "generate_draft") > baselineJobCount;
+                  const currentLatestDraft = currentSession.drafts?.[0] ?? null;
+
+                  if (latestJob?.status === "failed" && hasNewJob) {
+                    return {
+                      kind: "error",
+                      message: latestJob.error_message || "La regeneracion del borrador fallo.",
+                    };
+                  }
+
+                  if (
+                    (latestJob?.status === "success" && hasNewJob) ||
+                    currentSession.drafts.length > baselineDraftCount ||
+                    (!!currentLatestDraft &&
+                      (currentLatestDraft.id !== baselineLatestDraftId ||
+                        currentLatestDraft.version > baselineLatestVersion))
+                  ) {
+                    return { kind: "success", message: "Borrador regenerado correctamente." };
+                  }
+
+                  if (currentSession.status === "failed") {
+                    return {
+                      kind: "error",
+                      message: "La sesion quedo en estado fallido durante la regeneracion.",
+                    };
+                  }
+
+                  return { kind: "pending" };
+                },
+              });
+            }}
           >
             Regenerar borrador
           </button>
@@ -391,7 +577,12 @@ export default function SessionDetailPage() {
           <button
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:w-auto"
             disabled={busy}
-            onClick={() => runAction(() => onSavePatientData())}
+            onClick={() =>
+              runAction(() => onSavePatientData(), {
+                successMessage: "Datos personales guardados correctamente.",
+                errorMessage: "No se pudieron guardar los datos personales.",
+              })
+            }
           >
             Guardar datos personales
           </button>
@@ -399,32 +590,10 @@ export default function SessionDetailPage() {
       </Panel>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Panel
-          title="Transcript"
-          actions={
-            <>
-              <button className="rounded px-2 py-1 text-xs hover:bg-slate-100" onClick={() => setActiveTab("raw")}>
-                Raw
-              </button>
-              <button
-                className="rounded px-2 py-1 text-xs hover:bg-slate-100"
-                onClick={() => setActiveTab("normalized")}
-              >
-                Normalizado
-              </button>
-              <button className="rounded px-2 py-1 text-xs hover:bg-slate-100" onClick={() => setActiveTab("deid")}>
-                Desidentificado
-              </button>
-            </>
-          }
-        >
-          <pre className="max-h-80 overflow-auto rounded bg-slate-50 p-3 text-xs leading-6">{transcriptText || "Sin transcript"}</pre>
-        </Panel>
-
         <Panel title="Borrador Clinico (Editor)">
           {latestDraft ? (
             <>
-              <p className="mb-2 text-xs text-slate-500">
+              <p className="mb-2 break-words text-xs text-slate-500">
                 Version {latestDraft.version} | Modelo {latestDraft.llm_model} | Prompt {latestDraft.prompt_version}
               </p>
               <textarea
@@ -449,12 +618,17 @@ export default function SessionDetailPage() {
                   className="rounded bg-safe px-3 py-2 text-sm text-white"
                   disabled={busy}
                   onClick={() =>
-                    runAction(() =>
-                      approveDraft(latestDraft.id, {
-                        notes: reviewNotes,
-                        clinical_profile_text: editedProfile,
-                        session_summary: editedSummary,
-                      }),
+                    runAction(
+                      () =>
+                        approveDraft(latestDraft.id, {
+                          notes: reviewNotes,
+                          clinical_profile_text: editedProfile,
+                          session_summary: editedSummary,
+                        }),
+                      {
+                        successMessage: "Borrador aprobado correctamente.",
+                        errorMessage: "No se pudo aprobar el borrador.",
+                      },
                     )
                   }
                 >
@@ -464,12 +638,17 @@ export default function SessionDetailPage() {
                   className="rounded bg-alert px-3 py-2 text-sm text-white"
                   disabled={busy}
                   onClick={() =>
-                    runAction(() =>
-                      rejectDraft(latestDraft.id, {
-                        notes: reviewNotes,
-                        clinical_profile_text: editedProfile,
-                        session_summary: editedSummary,
-                      }),
+                    runAction(
+                      () =>
+                        rejectDraft(latestDraft.id, {
+                          notes: reviewNotes,
+                          clinical_profile_text: editedProfile,
+                          session_summary: editedSummary,
+                        }),
+                      {
+                        successMessage: "Borrador rechazado correctamente.",
+                        errorMessage: "No se pudo rechazar el borrador.",
+                      },
                     )
                   }
                 >
@@ -482,16 +661,6 @@ export default function SessionDetailPage() {
           )}
         </Panel>
 
-        <Panel title="JSON Estructurado">
-          {latestDraft ? (
-            <pre className="max-h-80 overflow-auto rounded bg-slate-50 p-3 text-xs leading-6">
-              {JSON.stringify(latestDraft.structured_json, null, 2)}
-            </pre>
-          ) : (
-            <p className="text-sm text-slate-600">Sin datos.</p>
-          )}
-        </Panel>
-
         <Panel title="Riesgos y Alertas">
           {session.risk_flags.length > 0 ? (
             <ul className="space-y-2">
@@ -500,8 +669,8 @@ export default function SessionDetailPage() {
                   <p className="text-xs font-semibold uppercase text-alert">
                     {flag.severity} - {flag.category}
                   </p>
-                  <p className="text-sm leading-6">{flag.snippet}</p>
-                  <p className="text-xs leading-5 text-slate-600">{flag.rationale}</p>
+                  <p className="break-words text-sm leading-6">{flag.snippet}</p>
+                  <p className="break-words text-xs leading-5 text-slate-600">{flag.rationale}</p>
                 </li>
               ))}
             </ul>
@@ -510,85 +679,128 @@ export default function SessionDetailPage() {
           )}
         </Panel>
 
-        <Panel title="Documentos Generados (PDF / DOCX)">
-          {sortedDocuments.length > 0 ? (
-            <ul className="space-y-2">
-              {sortedDocuments.map((doc) => (
-                <li key={doc.id} className="rounded-lg border border-slate-200 p-3">
-                  <p className="break-all text-xs text-slate-500">ID: {doc.id}</p>
-                  <p className="text-sm">Estado: {doc.status}</p>
-                  {doc.google_doc_url ? (
-                    <a className="text-sm text-blue-700 underline" href={doc.google_doc_url}>
-                      Abrir documento fuente
-                    </a>
-                  ) : null}
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <Panel title="Documentos Generados (PDF)">
+            {sortedDocuments.length > 0 ? (
+              <ul className="space-y-2">
+                {sortedDocuments.map((doc) => (
+                  <li key={doc.id} className="rounded-lg border border-slate-200 p-3">
+                    <p className="break-all text-xs text-slate-500">ID: {doc.id}</p>
+                    <p className="text-sm">Estado: {doc.status}</p>
+                    {doc.google_doc_url ? (
+                      <a className="break-all text-sm text-blue-700 underline" href={doc.google_doc_url}>
+                        Abrir documento fuente
+                      </a>
+                    ) : null}
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <button
+                        className="rounded border border-slate-300 px-2 py-2 text-xs"
+                        onClick={() =>
+                          runAction(() => onDownloadPdf(doc.id), {
+                            successMessage: "PDF descargado correctamente.",
+                            errorMessage: "No se pudo descargar el PDF.",
+                          })
+                        }
+                      >
+                        Descargar PDF
+                      </button>
+                      <button
+                        className="rounded border border-rose-300 px-2 py-2 text-xs text-rose-700"
+                        onClick={() =>
+                          runAction(() => onDeleteDocument(doc.id), {
+                            successMessage: "Documento eliminado correctamente.",
+                            errorMessage: "No se pudo eliminar el documento.",
+                          })
+                        }
+                      >
+                        Eliminar borrador
+                      </button>
+                    </div>
+                    {doc.exported_pdf_path ? (
+                      <p className="mt-1 break-all text-xs text-slate-600">PDF: {doc.exported_pdf_path}</p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-slate-600">Sin documentos.</p>
+            )}
+          </Panel>
+        </div>
+
+        <section className="overflow-hidden rounded-2xl border border-brand-200 bg-white/95 shadow-panel xl:col-span-2">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5"
+            onClick={() => setShowProcessedData((current) => !current)}
+          >
+            <span className="text-base font-semibold text-ink">Data Procesada</span>
+            <span className="text-sm text-slate-500">{showProcessedData ? "Ocultar" : "Mostrar"}</span>
+          </button>
+
+          {showProcessedData ? (
+            <div className="border-t border-brand-100 p-4 sm:p-5">
+              <div className="space-y-4">
+                <div>
+                  <div className="mb-3 flex flex-wrap gap-2">
                     <button
-                      className="rounded border border-slate-300 px-2 py-2 text-xs"
-                      onClick={() => runAction(() => exportPdf(doc.id))}
+                      className={`rounded px-2 py-1 text-xs ${activeTab === "raw" ? "bg-slate-900 text-white" : "hover:bg-slate-100"}`}
+                      onClick={() => setActiveTab("raw")}
                     >
-                      Exportar PDF
+                      Raw
                     </button>
                     <button
-                      className="rounded border border-slate-300 px-2 py-2 text-xs"
-                      onClick={() => runAction(() => onPreviewPdf(doc.id))}
+                      className={`rounded px-2 py-1 text-xs ${activeTab === "normalized" ? "bg-slate-900 text-white" : "hover:bg-slate-100"}`}
+                      onClick={() => setActiveTab("normalized")}
                     >
-                      Previsualizar PDF
+                      Normalizado
                     </button>
                     <button
-                      className="rounded border border-slate-300 px-2 py-2 text-xs"
-                      onClick={() => runAction(() => onDownloadPdf(doc.id))}
+                      className={`rounded px-2 py-1 text-xs ${activeTab === "deid" ? "bg-slate-900 text-white" : "hover:bg-slate-100"}`}
+                      onClick={() => setActiveTab("deid")}
                     >
-                      Descargar PDF
-                    </button>
-                    <button
-                      className="rounded border border-slate-300 px-2 py-2 text-xs"
-                      onClick={() => runAction(() => exportDocx(doc.id))}
-                    >
-                      Exportar DOCX
-                    </button>
-                    <button
-                      className="rounded border border-slate-300 px-2 py-2 text-xs"
-                      onClick={() => runAction(() => onDownloadDocx(doc.id))}
-                    >
-                      Descargar DOCX
-                    </button>
-                    <button
-                      className="rounded border border-rose-300 px-2 py-2 text-xs text-rose-700"
-                      onClick={() => runAction(() => onDeleteDocument(doc.id))}
-                    >
-                      Eliminar borrador
+                      Desidentificado
                     </button>
                   </div>
-                  {doc.exported_pdf_path ? (
-                    <p className="mt-1 break-all text-xs text-slate-600">PDF: {doc.exported_pdf_path}</p>
-                  ) : null}
-                  {doc.exported_docx_path ? (
-                    <p className="mt-1 break-all text-xs text-slate-600">DOCX: {doc.exported_docx_path}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-600">Sin documentos.</p>
-          )}
-        </Panel>
+                  <h3 className="mb-2 text-sm font-semibold text-ink">Transcript</h3>
+                  <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-50 p-3 text-xs leading-6">
+                    {transcriptText || "Sin transcript"}
+                  </pre>
+                </div>
 
-        <Panel title="Trazabilidad / Audit Trail">
-          {auditLogs.length > 0 ? (
-            <ul className="space-y-2">
-              {auditLogs.map((item) => (
-                <li key={item.id} className="rounded-lg border border-slate-200 p-3 text-xs">
-                  <p className="font-semibold">{item.action}</p>
-                  <p className="text-slate-500">{new Date(item.created_at).toLocaleString("es-CO")}</p>
-                  <pre className="mt-1 overflow-auto rounded bg-slate-50 p-2 leading-5">{JSON.stringify(item.metadata, null, 2)}</pre>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-600">Sin eventos registrados.</p>
-          )}
-        </Panel>
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-ink">JSON Estructurado</h3>
+                  {latestDraft ? (
+                    <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-50 p-3 text-xs leading-6">
+                      {JSON.stringify(latestDraft.structured_json, null, 2)}
+                    </pre>
+                  ) : (
+                    <p className="text-sm text-slate-600">Sin datos.</p>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-ink">Trazabilidad / Audit Trail</h3>
+                  {auditLogs.length > 0 ? (
+                    <ul className="space-y-2">
+                      {auditLogs.map((item) => (
+                        <li key={item.id} className="rounded-lg border border-slate-200 p-3 text-xs">
+                          <p className="break-words font-semibold">{item.action}</p>
+                          <p className="text-slate-500">{new Date(item.created_at).toLocaleString("es-CO")}</p>
+                          <pre className="mt-1 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-50 p-2 leading-5">
+                            {JSON.stringify(item.metadata, null, 2)}
+                          </pre>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-slate-600">Sin eventos registrados.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </section>
       </div>
     </main>
   );
