@@ -1,4 +1,4 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 
 interface BrandMarkProps {
   compact?: boolean;
@@ -6,13 +6,13 @@ interface BrandMarkProps {
 }
 
 export function BrandMark({ compact = false, showSlogan = true }: BrandMarkProps) {
-  const width = compact ? 118 : 156;
-  const height = compact ? 122 : 164;
+  const width = compact ? 98 : 164;
+  const height = compact ? 132 : 220;
 
   return (
     <div className="inline-flex flex-col items-start">
       <Image
-        src="/branding/respiro-integral-logo.svg"
+        src="/branding/respiro-3-logo.png"
         alt="Respiro Integral"
         width={width}
         height={height}

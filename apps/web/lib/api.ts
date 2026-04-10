@@ -201,15 +201,15 @@ export async function getTranscript(sessionId: string): Promise<TranscriptPayloa
 }
 
 export async function processSession(sessionId: string): Promise<void> {
-  await request(`/api/v1/sessions/${sessionId}/process?sync=true`, { method: "POST" });
+  await request(`/api/v1/sessions/${sessionId}/process`, { method: "POST" });
 }
 
 export async function generateDraft(sessionId: string): Promise<void> {
-  await request(`/api/v1/sessions/${sessionId}/generate-draft?sync=true`, { method: "POST" });
+  await request(`/api/v1/sessions/${sessionId}/generate-draft`, { method: "POST" });
 }
 
 export async function regenerateDraft(sessionId: string): Promise<void> {
-  await request(`/api/v1/sessions/${sessionId}/regenerate-draft?sync=true`, { method: "POST" });
+  await request(`/api/v1/sessions/${sessionId}/regenerate-draft`, { method: "POST" });
 }
 
 export async function approveDraft(

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -50,6 +50,7 @@ export default function SessionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const latestDraft = useMemo(() => session?.drafts?.[0] ?? null, [session]);
   const sortedDocuments = useMemo(
@@ -127,12 +128,26 @@ export default function SessionDetailPage() {
     setAuditLogs(logsResult.status === "fulfilled" ? logsResult.value : []);
   }
 
-  async function runAction(fn: () => Promise<unknown>) {
+  async function runAction(
+    fn: () => Promise<unknown>,
+    options?: { successMessage?: string; pollAfter?: boolean },
+  ) {
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       await fn();
+      if (options?.successMessage) {
+        setNotice(options.successMessage);
+      }
       await refreshAll();
+
+      if (options?.pollAfter) {
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 2500));
+          await refreshAll();
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Accion fallida");
     } finally {
@@ -206,7 +221,7 @@ export default function SessionDetailPage() {
   }
 
   async function onDeleteDocument(documentId: string): Promise<void> {
-    const confirmed = window.confirm("Se eliminara este borrador/documento generado. ¿Deseas continuar?");
+    const confirmed = window.confirm("Se eliminara este borrador/documento generado. ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿Deseas continuar?");
     if (!confirmed) {
       return;
     }
@@ -254,21 +269,21 @@ export default function SessionDetailPage() {
           <button
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy}
-            onClick={() => runAction(() => processSession(sessionId))}
+            onClick={() => runAction(() => processSession(sessionId), { successMessage: "Procesamiento en cola. El estado se actualizara automaticamente.", pollAfter: true })}
           >
             Procesar transcript
           </button>
           <button
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy}
-            onClick={() => runAction(() => generateDraft(sessionId))}
+            onClick={() => runAction(() => generateDraft(sessionId), { successMessage: "Generacion de borrador en cola. Actualizando estado...", pollAfter: true })}
           >
             Generar borrador
           </button>
           <button
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
             disabled={busy}
-            onClick={() => runAction(() => regenerateDraft(sessionId))}
+            onClick={() => runAction(() => regenerateDraft(sessionId), { successMessage: "Regeneracion de borrador en cola. Actualizando estado...", pollAfter: true })}
           >
             Regenerar borrador
           </button>
@@ -283,6 +298,7 @@ export default function SessionDetailPage() {
       </header>
 
       {error ? <p className="rounded-xl bg-rose-50 p-3 text-sm text-alert">{error}</p> : null}
+      {notice ? <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</p> : null}
 
       <Panel title="Datos Personales del Paciente">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

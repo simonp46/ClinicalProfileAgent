@@ -1,4 +1,4 @@
-﻿name: CI
+name: CI
 
 on:
   push:
@@ -41,7 +41,7 @@ jobs:
       USE_MOCK_OPENAI: "true"
       USE_MOCK_GOOGLE: "true"
       CSRF_ENABLED: "false"
-      API_CORS_ORIGINS: http://localhost:3000
+      API_CORS_ORIGINS: '["http://localhost:3000"]'
       SECRET_KEY: github-actions-secret
       PYTHONPATH: apps/api
     steps:
@@ -96,3 +96,4 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
         run: npm run build
+
