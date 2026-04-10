@@ -72,6 +72,7 @@ class TherapistOut(TherapistBase):
 class TherapistProfileUpdate(BaseModel):
     full_name: str | None = None
     google_account_email: EmailStr | None = None
+    microsoft_account_email: EmailStr | None = None
     phone: str | None = None
     contact_email: EmailStr | None = None
     address: str | None = None
@@ -438,3 +439,4 @@ class ClinicalGenerationResult(BaseModel):
     session_summary: str
     clinical_profile_text: str
     risk_flags: list[RiskFlagCandidate] = Field(default_factory=list)
+

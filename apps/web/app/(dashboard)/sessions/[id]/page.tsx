@@ -488,77 +488,77 @@ export default function SessionDetailPage() {
 
       <Panel title="Datos Personales del Paciente">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Nombre
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={patientFullName}
               onChange={(event) => setPatientFullName(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Telefono
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={patientPhone}
               onChange={(event) => setPatientPhone(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Identificacion
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={patientIdentification}
               onChange={(event) => setPatientIdentification(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Fecha de nacimiento
             <input
               type="date"
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
-              value={patientBirthDate}
+                className="mt-1 block w-full min-w-0 max-w-full rounded-xl border border-slate-300 p-2"
+                value={patientBirthDate}
               onChange={(event) => setPatientBirthDate(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Edad
             <input
               type="number"
               min={0}
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={patientAge}
               onChange={(event) => setPatientAge(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Sexo
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={patientGender}
               onChange={(event) => setPatientGender(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700 xl:col-span-2">
+          <label className="min-w-0 text-sm text-slate-700 xl:col-span-2">
             Direccion
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={patientAddress}
               onChange={(event) => setPatientAddress(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Ciudad
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={patientCity}
               onChange={(event) => setPatientCity(event.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="min-w-0 text-sm text-slate-700">
             Profesion
             <input
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={patientProfession}
               onChange={(event) => setPatientProfession(event.target.value)}
             />
@@ -567,7 +567,7 @@ export default function SessionDetailPage() {
             Email
             <input
               type="email"
-              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              className="mt-1 w-full min-w-0 rounded-xl border border-slate-300 p-2"
               value={patientEmail}
               onChange={(event) => setPatientEmail(event.target.value)}
             />
@@ -805,3 +805,4 @@ export default function SessionDetailPage() {
     </main>
   );
 }
+
