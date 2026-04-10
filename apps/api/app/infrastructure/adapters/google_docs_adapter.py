@@ -1,4 +1,4 @@
-﻿"""Google Docs/Drive adapter with mock fallback."""
+"""Google Docs/Drive adapter with mock fallback."""
 
 from __future__ import annotations
 
@@ -529,6 +529,10 @@ class GoogleDocsAdapter(BaseDocsAdapter):
 
         self.docs_service = build("docs", "v1", credentials=creds, cache_discovery=False)
         self.drive_service = build("drive", "v3", credentials=creds, cache_discovery=False)
+        templates_dir = Path(__file__).resolve().parents[3] / "assets" / "templates"
+        self.default_respiro_docx = templates_dir / "plantilla_historia_clinica_respira_integral_editable_final.docx"
+        self.default_respiro_pdf = templates_dir / "plantilla_historia_clinica_respira_integral_of.pdf"
+        self.respiro_renderer = RespiroTemplateRenderer()
 
     def create_document(self, *, title: str, content: str) -> tuple[str, str]:
         doc = self.docs_service.documents().create(body={"title": title}).execute()
@@ -563,7 +567,32 @@ class GoogleDocsAdapter(BaseDocsAdapter):
         destination_dir: str,
         template_docx_path: str | None = None,
     ) -> tuple[str, str]:
-        _ = template_docx_path
+        template = self._resolve_docx_template(template_docx_path)
+        if template is not None:
+            content = self._read_google_doc_text(doc_id)
+            fields = self._parse_template_fields(content)
+            destination = Path(destination_dir)
+            destination.mkdir(parents=True, exist_ok=True)
+            output = destination / f"{doc_id}.docx"
+
+            if self.respiro_renderer.is_respiro_template(template):
+                rendered = self.respiro_renderer.render_docx(
+                    template_path=str(template),
+                    output_path=str(output),
+                    fields=fields,
+                )
+                if rendered:
+                    return str(output), "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+            document = Document(str(template))
+            self._populate_docx_template(
+                document=document,
+                title="Clinical Draft",
+                fields=fields,
+            )
+            document.save(output)
+            return str(output), "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
         mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         return self._export_file(doc_id=doc_id, destination_dir=destination_dir, suffix="docx", mime_type=mime_type)
 
@@ -576,9 +605,23 @@ class GoogleDocsAdapter(BaseDocsAdapter):
         signature_image_path: str | None = None,
         therapist_name: str | None = None,
     ) -> tuple[str, str]:
-        _ = template_pdf_path
-        _ = signature_image_path
-        _ = therapist_name
+        template = self._resolve_template(template_pdf_path)
+        if template is not None:
+            content = self._read_google_doc_text(doc_id)
+            fields = self._parse_template_fields(content)
+            destination = Path(destination_dir)
+            destination.mkdir(parents=True, exist_ok=True)
+            output = destination / f"{doc_id}.pdf"
+
+            if self.respiro_renderer.render_pdf(
+                template_path=str(template),
+                output_path=str(output),
+                fields=fields,
+                signature_image_path=signature_image_path,
+                therapist_name=therapist_name,
+            ):
+                return str(output), "application/pdf"
+
         return self._export_file(doc_id=doc_id, destination_dir=destination_dir, suffix="pdf", mime_type="application/pdf")
 
     def _export_file(self, *, doc_id: str, destination_dir: str, suffix: str, mime_type: str) -> tuple[str, str]:
@@ -588,6 +631,56 @@ class GoogleDocsAdapter(BaseDocsAdapter):
         output = destination / f"{doc_id}.{suffix}"
         output.write_bytes(request.execute())
         return str(output), mime_type
+
+    def _resolve_docx_template(self, profile_template_path: str | None) -> Path | None:
+        if profile_template_path and Path(profile_template_path).exists():
+            return Path(profile_template_path)
+        if self.default_respiro_docx.exists():
+            return self.default_respiro_docx
+        return None
+
+    def _resolve_template(self, profile_template_path: str | None) -> Path | None:
+        if profile_template_path and Path(profile_template_path).exists():
+            return Path(profile_template_path)
+        if self.default_respiro_pdf.exists():
+            return self.default_respiro_pdf
+        return None
+
+    def _read_google_doc_text(self, doc_id: str) -> str:
+        try:
+            doc = self.docs_service.documents().get(documentId=doc_id).execute()
+        except Exception as exc:
+            raise DocsAdapterError(f"Unable to read Google Doc content for export: {doc_id}") from exc
+
+        lines: list[str] = []
+        body = doc.get("body", {}) if isinstance(doc, dict) else {}
+        elements = body.get("content", []) if isinstance(body, dict) else []
+        for element in elements:
+            if not isinstance(element, dict):
+                continue
+            paragraph = element.get("paragraph")
+            if not isinstance(paragraph, dict):
+                continue
+
+            pieces: list[str] = []
+            for item in paragraph.get("elements", []):
+                if not isinstance(item, dict):
+                    continue
+                text_run = item.get("textRun")
+                if not isinstance(text_run, dict):
+                    continue
+                content = str(text_run.get("content") or "").replace("\u000b", "\n")
+                pieces.append(content)
+
+            combined = "".join(pieces).strip()
+            if combined:
+                lines.extend(part.strip() for part in combined.splitlines() if part.strip())
+            else:
+                lines.append("")
+        return "\n".join(lines).strip()
+
+    def _parse_template_fields(self, content: str) -> dict[str, Any]:
+        return MockDocsAdapter._parse_template_fields(self, content)
 
 
 def build_docs_adapter(*, therapist = None, impersonated_user: str | None = None) -> BaseDocsAdapter:

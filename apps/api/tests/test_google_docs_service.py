@@ -10,7 +10,7 @@ from app.application.services.pipeline_service import PipelineService
 from app.application.services.prompt_registry import PromptRegistry
 from app.core.config import settings
 from app.domain.models import Session as SessionModel
-from app.infrastructure.adapters.google_docs_adapter import MockDocsAdapter
+from app.infrastructure.adapters.google_docs_adapter import GoogleDocsAdapter, MockDocsAdapter
 from tests.helpers import seed_therapist_and_session
 
 
@@ -103,7 +103,9 @@ def test_export_docx_with_uploaded_template_is_legible(db_session: Session) -> N
     assert "Seguimiento, intervención propuesta y recomendaciones" in rendered_text
 
 
-def test_mock_adapter_uses_default_pdf_template_when_profile_template_missing(tmp_path: Path) -> None:
+def test_mock_adapter_uses_default_pdf_template_when_profile_template_missing(
+    tmp_path: Path,
+) -> None:
     adapter = MockDocsAdapter()
 
     missing_profile_pdf = tmp_path / "missing-template.pdf"
@@ -123,3 +125,70 @@ def test_mock_adapter_prefers_custom_profile_template(tmp_path: Path) -> None:
     assert resolved == custom
 
 
+def test_google_adapter_renders_pdf_with_template_when_available(tmp_path: Path) -> None:
+    def paragraph(text: str) -> dict[str, object]:
+        return {"paragraph": {"elements": [{"textRun": {"content": text}}]}}
+
+    class FakeDocsService:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self.payload = payload
+
+        def documents(self) -> "FakeDocsService":
+            return self
+
+        def get(self, **kwargs: object) -> "FakeDocsService":
+            assert kwargs["documentId"] == "google-doc-123"
+            return self
+
+        def execute(self) -> dict[str, object]:
+            return self.payload
+
+    class FakeRenderer:
+        def __init__(self) -> None:
+            self.render_pdf_called = False
+            self.last_kwargs: dict[str, object] = {}
+
+        def render_pdf(self, **kwargs: object) -> bool:
+            self.render_pdf_called = True
+            self.last_kwargs = kwargs
+            Path(str(kwargs["output_path"])).write_bytes(b"%PDF-1.4\n%templated")
+            return True
+
+    payload = {
+        "body": {
+            "content": [
+                paragraph("DATOS PERSONALES DEL PACIENTE\n"),
+                paragraph("- Nombre del paciente: Carlos Mendez\n"),
+                paragraph("- Edad: 36\n"),
+                paragraph("- Fecha consulta: 10/04/2026\n"),
+                paragraph("- Ciudad: Bogota\n"),
+                paragraph("1) DATOS DE IDENTIFICACION\n"),
+                paragraph("Paciente con seguimiento respiratorio.\n"),
+            ]
+        }
+    }
+
+    template_path = tmp_path / "template.pdf"
+    template_path.write_bytes(b"%PDF-1.4\n%template")
+    signature_path = tmp_path / "signature.png"
+
+    adapter = GoogleDocsAdapter.__new__(GoogleDocsAdapter)
+    adapter.docs_service = FakeDocsService(payload)
+    adapter.drive_service = None
+    adapter.default_respiro_docx = tmp_path / "missing.docx"
+    adapter.default_respiro_pdf = template_path
+    adapter.respiro_renderer = FakeRenderer()
+
+    output_path, mime_type = adapter.export_pdf(
+        doc_id="google-doc-123",
+        destination_dir=str(tmp_path / "exports"),
+        signature_image_path=str(signature_path),
+        therapist_name="Dra. Respira",
+    )
+
+    assert mime_type == "application/pdf"
+    assert Path(output_path).exists()
+    assert adapter.respiro_renderer.render_pdf_called is True
+    assert adapter.respiro_renderer.last_kwargs["template_path"] == str(template_path)
+    assert adapter.respiro_renderer.last_kwargs["therapist_name"] == "Dra. Respira"
+    assert adapter.respiro_renderer.last_kwargs["signature_image_path"] == str(signature_path)
